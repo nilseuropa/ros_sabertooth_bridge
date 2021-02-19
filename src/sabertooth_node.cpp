@@ -1,3 +1,10 @@
+/*
+
+Based on:
+Sabertooth Simplified Serial Protocol (2012-2013 Dimension Engineering LLC)
+
+*/
+
 #include <ros/ros.h>
 #include <ros/console.h>
 #include <serial/serial.h>
@@ -13,42 +20,68 @@ ros::Timer        right_motor_cmd_watchdog;
 
 serial::Serial    controller;
 
+#define MOTOR_MAX 1023
+
+double map(double x, double in_min, double in_max, double out_min, double out_max) {
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+};
+
+void set_left_motor_power(int power){
+  std::stringstream cmd;
+  cmd << "M1: " << power << "\r\n";
+  controller.write(cmd.str());
+}
+
+void set_right_motor_power(int power){
+  std::stringstream cmd;
+  cmd << "M2: " << power << "\r\n";
+  controller.write(cmd.str());
+}
+
+// ROS //
+
 void left_wheel_power_cmd_cb(const std_msgs::Float32& left_power){
     left_motor_cmd_watchdog.stop();
-    // send_motor_power
+    float power = map(left_power.data, -1.0, 1.0, -MOTOR_MAX, MOTOR_MAX);
+    set_left_motor_power((int)power);
     left_motor_cmd_watchdog.start();
 }
 void left_motor_watchdog_cb(const ros::TimerEvent&){
   left_motor_cmd_watchdog.stop();
-  // stop_motor
+  set_left_motor_power(0);
 }
 
 void right_wheel_power_cmd_cb(const std_msgs::Float32& right_power){
     right_motor_cmd_watchdog.stop();
-    // send_motor_power
+    float power = map(right_power.data, -1.0, 1.0, -MOTOR_MAX, MOTOR_MAX);
+    set_right_motor_power((int)power);
     right_motor_cmd_watchdog.start();
 }
 void right_motor_watchdog_cb(const ros::TimerEvent&){
   right_motor_cmd_watchdog.stop();
-  // stop_motor
+  set_right_motor_power(0);
 }
 
+double max_linear_velocity = 1;
 double wheel_separation = 0;
 void cmd_vel_cb(const geometry_msgs::Twist& twist)
 {
   twist_command_watchdog.stop();
   float left_track_linear_velocity  = (2.0f * twist.linear.x - wheel_separation * twist.angular.z)/2.0f;
   float right_track_linear_velocity = (2.0f * twist.linear.x + wheel_separation * twist.angular.z)/2.0f;
-  // send_motor_power(s)
+  float right_motor_power = map(right_track_linear_velocity, -max_linear_velocity, max_linear_velocity, -MOTOR_MAX, MOTOR_MAX);
+  float left_motor_power = map(left_track_linear_velocity, -max_linear_velocity, max_linear_velocity, -MOTOR_MAX, MOTOR_MAX);
+  set_right_motor_power((int)right_motor_power);
+  set_left_motor_power((int)left_motor_power);
   twist_command_watchdog.start();
 }
 void twist_watchdog_cb(const ros::TimerEvent&)
 {
   twist_command_watchdog.stop();
-  // stop_motors
+  set_right_motor_power(0);
+  set_left_motor_power(0);
   controller.flush();
 }
-
 
 int main(int argc, char **argv){
 
@@ -56,8 +89,8 @@ int main(int argc, char **argv){
     ros::NodeHandle n;
     ros::NodeHandle nhLocal("~");
 
-    double refresh_rate;
-    nhLocal.param("refresh_rate", refresh_rate, 1000.0);
+    // double refresh_rate;
+    // nhLocal.param("refresh_rate", refresh_rate, 1000.0);
 
     std::string port;
     nhLocal.param<std::string>("port", port, "/dev/ttyACM0");
@@ -70,7 +103,8 @@ int main(int argc, char **argv){
 
     bool enable_twist_input;
     nhLocal.param("enable_twist_input",enable_twist_input, false);
-    nhLocal.param("wheel_separation", wheel_separation, 0.56);
+    nhLocal.param("wheel_separation", wheel_separation, 0.3);
+    nhLocal.param("max_linear_velocity", max_linear_velocity, 0.5);
 
     // set up watchdogs
     serial::Timeout timeout = serial::Timeout::simpleTimeout(watchdog_timeout);
@@ -110,15 +144,18 @@ int main(int argc, char **argv){
         ROS_INFO("Twist input enabled.");
     }
 
-    ros::Rate rate(refresh_rate);
     ROS_INFO("%s started.", ros::this_node::getName().c_str());
+    ros::spin();
 
+    /*
+    ros::Rate rate(refresh_rate);
     while (ros::ok())
     {
         ros::spinOnce();
         // read_stream();
         rate.sleep();
     }
+    */
 
     // Shutdown
     if (controller.isOpen()) controller.close();

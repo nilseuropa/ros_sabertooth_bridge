@@ -1,0 +1,5 @@
+<launch>
+  <node pkg="sabertooth_bridge" type="sabertooth_node" name="sabertooth" output="screen">
+    <rosparam file="$(find sabertooth_bridge)/params/sabertooth.yaml"/>
+	</node>
+</launch>

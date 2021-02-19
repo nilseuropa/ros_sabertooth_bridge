@@ -9,12 +9,11 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(Boost REQUIRED COMPONENTS system thread)
 
 catkin_package(
-#  INCLUDE_DIRS include
+  INCLUDE_DIRS include
   CATKIN_DEPENDS roscpp std_msgs serial geometry_msgs
 )
 
 include_directories(
-  include
   ${Boost_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
 )
