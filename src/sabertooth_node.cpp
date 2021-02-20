@@ -14,9 +14,9 @@ Sabertooth Simplified Serial Protocol (2012-2013 Dimension Engineering LLC)
 #include <std_msgs/Float32.h>
 #include <geometry_msgs/Twist.h>
 
-serial::Serial    controller;
-
 #define MOTOR_MAX 2047
+
+serial::Serial    controller;
 
 double map(double x, double in_min, double in_max, double out_min, double out_max) {
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
@@ -24,8 +24,14 @@ double map(double x, double in_min, double in_max, double out_min, double out_ma
 
 void set_motor_power(uint8_t motor, int power){
   std::stringstream cmd;
-  cmd << "M" << motor << ": " << power << "\r\n";
+  cmd << "M" << (char)motor+0 <<": " << power << "\r\n";
+  std::cout << cmd.str();
   controller.write(cmd.str());
+}
+
+void motor_cb(const std_msgs::Float32& power, uint8_t motor){
+  float p = map(power.data, -1.0, 1.0, -MOTOR_MAX, MOTOR_MAX);
+  set_motor_power(motor,(int)p);
 }
 
 void m1_cb(const std_msgs::Float32& power){
@@ -86,8 +92,8 @@ int main(int argc, char **argv){
         ROS_WARN("Retry in 5 seconds.");
         sleep( 5 );
     }
-
-    ros::Subscriber m1 = n.subscribe("/m1/power", 10, m1_cb);
+    
+    ros::Subscriber m1 = n.subscribe("/m1/power", 10, m1_cb );
     ros::Subscriber m2 = n.subscribe("/m2/power", 10, m2_cb);
     ros::Subscriber m3 = n.subscribe("/m3/power", 10, m3_cb);
     ros::Subscriber m4 = n.subscribe("/m4/power", 10, m4_cb);
