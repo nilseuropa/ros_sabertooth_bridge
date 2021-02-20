@@ -1,6 +1,3 @@
 port: /dev/ttyACM0
 baud: 115200
 watchdog_timeout: 100 # topic and serial communication timeout [millisec]
-wheel_separation: 0.3 # distance of driven wheels for differential drive [meter]
-enable_twist_input: true # differential drive on /cmd_vel
-max_linear_velocity: 0.5 # base maximum translational velocity to map output power without feedback
