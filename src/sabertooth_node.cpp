@@ -34,32 +34,14 @@ void motor_cb(const std_msgs::Float32& power, uint8_t motor){
   set_motor_power(motor,(int)p);
 }
 
-void m1_cb(const std_msgs::Float32& power){
-  float p = map(power.data, -1.0, 1.0, -MOTOR_MAX, MOTOR_MAX);
-  set_motor_power(1,(int)p);
-}
-
-void m2_cb(const std_msgs::Float32& power){
-  float p = map(power.data, -1.0, 1.0, -MOTOR_MAX, MOTOR_MAX);
-  set_motor_power(2,(int)p);
-}
-
-void m3_cb(const std_msgs::Float32& power){
-  float p = map(power.data, -1.0, 1.0, -MOTOR_MAX, MOTOR_MAX);
-  set_motor_power(3,(int)p);
-}
-
-void m4_cb(const std_msgs::Float32& power){
-  float p = map(power.data, -1.0, 1.0, -MOTOR_MAX, MOTOR_MAX);
-  set_motor_power(4,(int)p);
-}
-
-
 int main(int argc, char **argv){
 
     ros::init(argc, argv, "sabertooth_node");
     ros::NodeHandle n;
     ros::NodeHandle nhLocal("~");
+
+    int num_of_channels;
+    nhLocal.param("num_of_channels", num_of_channels, 4);
 
     // set up watchdogs
     int watchdog_timeout;
@@ -92,11 +74,16 @@ int main(int argc, char **argv){
         ROS_WARN("Retry in 5 seconds.");
         sleep( 5 );
     }
-    
-    ros::Subscriber m1 = n.subscribe("/m1/power", 10, m1_cb );
-    ros::Subscriber m2 = n.subscribe("/m2/power", 10, m2_cb);
-    ros::Subscriber m3 = n.subscribe("/m3/power", 10, m3_cb);
-    ros::Subscriber m4 = n.subscribe("/m4/power", 10, m4_cb);
+
+
+    std::vector<ros::Subscriber> subs;
+    for (uint8_t index=1; index<=num_of_channels; index++){
+      boost::function<void (const std_msgs::Float32&)> f = boost::bind(motor_cb, _1, index);
+      std::stringstream topicName;
+      topicName << "/motor_" << index+0 << "/power";
+      subs.push_back(n.subscribe<std_msgs::Float32>(topicName.str(), 10, f ));
+      ROS_INFO("Subscribed to topic %s", subs.back().getTopic().c_str());
+    }
 
     ROS_INFO("%s started.", ros::this_node::getName().c_str());
     ros::spin();

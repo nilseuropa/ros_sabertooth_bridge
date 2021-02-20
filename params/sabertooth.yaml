@@ -1,3 +1,4 @@
 port: /dev/ttyUSB0
 baud: 115200
 watchdog_timeout: 100 # topic and serial communication timeout [millisec]
+num_of_channels: 4
